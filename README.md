@@ -9,4 +9,5 @@ Note:
 
 # Getting started
 1. cd to vpnConnector directory
-2. run ./vpnConnector *VPN-name* *wifi-name*
+2. run *cargo build*
+3. run *cargo run **VPN-name** **wifi-name***
