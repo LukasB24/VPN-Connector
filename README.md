@@ -11,3 +11,6 @@ A small program that connects your device to VPN, if you're not connected to a s
 1. cd to vpnConnector directory
 2. run *cargo build*
 3. run *cargo run **VPN-name** **wifi-name***
+4. to run program directly:
+    - cd to location of binary
+    - run *./vpnConnector **VPN-name** **wifi-name***

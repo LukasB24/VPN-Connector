@@ -70,7 +70,8 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        println!("First argument is VPN name.\nYou need to provide at least one WLAN name as argument.\n\nUsage: vpnConnector <VPN-name> <connection name>");
+        println!("First argument is VPN name.\nYou need to provide at least one WLAN name as argument.\
+        \n\nUsage: ./vpnConnector <VPN-name> <connection name>");
         return;
     }
 
