@@ -12,8 +12,8 @@ fn is_connected(name: &str, vpn: &str) -> bool {
 
     for line in output.lines() {
         let mut fields = line.split(':');
-        let connection_name = fields.next().unwrap();
-        let connection_type = fields.next().unwrap();
+        let connection_name: &str = fields.next().unwrap();
+        let connection_type: &str = fields.next().unwrap();
 
         if connection_name == name && connection_type == "802-11-wireless"
         || connection_name == vpn {
@@ -24,7 +24,7 @@ fn is_connected(name: &str, vpn: &str) -> bool {
 }
 
 fn connect_to_vpn(name: &str) -> bool {
-    let output = Command::new("nmcli")
+    let output: Result<std::process::Output, std::io::Error> = Command::new("nmcli")
         .args(&["connection", "up", name])
         .output();
 
@@ -40,13 +40,13 @@ fn connect_to_vpn(name: &str) -> bool {
 }
 
 fn run_vpn_connector(args: &Vec<String>, vpn: &str){
-
     loop {
         let mut connected: bool = false;
         println!("Check connection status...\n");
 
         for connection in &args[2..] {
             connected = is_connected(connection, vpn);
+
             if connected {
                 println!("Status: {}OK\n{}Connected to secure network\n", "\x1B[32m", "\x1B[0m");
                 thread::sleep(Duration::from_secs(30));
@@ -56,7 +56,7 @@ fn run_vpn_connector(args: &Vec<String>, vpn: &str){
 
         if !connected {
             println!("Status: {}NOT CONNECTED{}\nTrying to connect...\n", "\x1B[31m", "\x1B[0m");
-            let success = connect_to_vpn(vpn);
+            let success: bool = connect_to_vpn(vpn);
 
             if !success {
                 println!("Failed to connect to VPN: Check VPN name");
@@ -70,13 +70,13 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        println!("First argument is VPN name.\nYou need to provide at least one WLAN name as argument.\
-        \n\nUsage: ./vpnConnector <VPN-name> <connection name>");
+        println!("First argument is VPN name.\nYou need to provide at least one WIFI-ID as argument.\
+        \n\nUsage: ./vpn_connector <VPN-name> <connection name>");
         return;
     }
 
     else {
-        thread::sleep(Duration::from_secs(5)); // wait for network manager to start
+        thread::sleep(Duration::from_secs(5)); // wait for networkmanager to start
         run_vpn_connector(&args, &args[1]);
     }
 }
