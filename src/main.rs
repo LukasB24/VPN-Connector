@@ -13,10 +13,8 @@ fn is_connected(name: &str, vpn: &str) -> bool {
     for line in output.lines() {
         let mut fields = line.split(':');
         let connection_name: &str = fields.next().unwrap();
-        let connection_type: &str = fields.next().unwrap();
 
-        if connection_name == name && connection_type == "802-11-wireless"
-        || connection_name == vpn {
+        if connection_name == name || connection_name == vpn {
             return true;
         }
     }
@@ -70,7 +68,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
-        println!("First argument is VPN name.\nYou need to provide at least one WIFI-ID as argument.\
+        println!("First argument is VPN name.\nYou need to provide at least one WIFI-SSID as argument.\
         \n\nUsage: ./vpn_connector <VPN-name> <connection name>");
         return;
     }
