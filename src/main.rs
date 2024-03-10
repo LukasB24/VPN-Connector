@@ -19,7 +19,7 @@ fn main() {
     else {
         let vpn_connector = LinuxVpnConnector::new(&args[1]);
         
-        thread::sleep(Duration::from_secs(5)); // wait for networkmanager to start
+        thread::sleep(Duration::from_secs(30)); // wait for networkmanager to start
         vpn_connector.run_vpn_connector(&args);
     }
 }
