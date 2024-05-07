@@ -2,6 +2,7 @@ pub mod linux_connector {
     use std::process::Command;
     use crate::connector::connector::Connector;
 
+ 
     pub struct LinuxVpnConnector<'a>{
         vpn_name: &'a str,
     }
@@ -32,6 +33,22 @@ pub mod linux_connector {
         fn connect_to_vpn(&self) -> bool {
             let output: Result<std::process::Output, std::io::Error> = Command::new("nmcli")
                 .args(&["connection", "up", &self.vpn_name])
+                .output();
+    
+            match output {
+                Ok(output) => {
+                    return output.status.success();
+                }
+                Err(output) => {
+                    println!("Failed to execute command: {}", output);
+                    false
+                }
+            }
+        }
+
+        fn disconnect_from_vpn(&self) -> bool {
+            let output: Result<std::process::Output, std::io::Error> = Command::new("nmcli")
+                .args(&["connection", "down", &self.vpn_name])
                 .output();
     
             match output {

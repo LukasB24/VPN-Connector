@@ -3,16 +3,19 @@ use std::thread;
 use std::time::Duration;
 use linux_connector::linux_connector::LinuxVpnConnector;
 use connector::connector::Connector;
+
 mod linux_connector;
 mod connector;
 
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let mut args: Vec<String> = env::args().collect();
+    args.push(String::from("Kabelgebundene Verbindung 1"));
 
     if args.len() < 3 {
         println!("First argument is VPN name.\nYou need to provide at least one WIFI-SSID as argument.\
-        \n\nUsage: ./vpn_connector <VPN-name> <connection name>");
+        \nBeware that first WIFI-SSID is interpreted as home network, that your VPN points to. 
+        \nUsage: ./vpn_connector <VPN-name> <home network name> <secure network 1> <secure network 2>");
         return;
     }
 
