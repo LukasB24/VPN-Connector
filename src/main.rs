@@ -9,8 +9,7 @@ mod connector;
 
 
 fn main() {
-    let mut args: Vec<String> = env::args().collect();
-    args.push(String::from("Kabelgebundene Verbindung 1"));
+    let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
         println!("First argument is VPN name.\nYou need to provide at least one WIFI-SSID as argument.\

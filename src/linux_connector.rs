@@ -23,7 +23,7 @@ pub mod linux_connector {
                 let mut fields = line.split(':');
                 let connection_name: &str = fields.next().unwrap();
     
-                if connection_name == connection || connection_name == self.vpn_name {
+                if connection_name == connection {
                     return true;
                 }
             }
