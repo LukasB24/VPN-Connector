@@ -2,7 +2,7 @@ pub mod connector {
     use std::thread;
     use std::time::Duration;
 
-    pub(crate) trait Connector<'b> {
+    pub trait Connector<'b> {
         fn new(vpn_name: &'b str) -> Self;
 
         fn is_connected(&self, connection_name: &str) -> bool;
@@ -58,7 +58,7 @@ pub mod connector {
 
                     println!("Status: {}OK\n{}Successfully connected to VPN\n", "\x1B[32m", "\x1B[0m");
                 }
-                thread::sleep(Duration::from_secs(10));
+                thread::sleep(Duration::from_secs(30));
             }
         }
     }
