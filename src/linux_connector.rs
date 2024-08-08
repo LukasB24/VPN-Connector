@@ -37,7 +37,7 @@ pub mod linux_connector {
     
             match output {
                 Ok(output) => {
-                    return output.status.success();
+                    output.status.success()
                 }
                 Err(output) => {
                     println!("Failed to execute command: {}", output);
@@ -53,7 +53,7 @@ pub mod linux_connector {
     
             match output {
                 Ok(output) => {
-                    return output.status.success();
+                    output.status.success()
                 }
                 Err(output) => {
                     println!("Failed to execute command: {}", output);

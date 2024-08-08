@@ -7,7 +7,6 @@ use connector::connector::Connector;
 mod linux_connector;
 mod connector;
 
-
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -21,7 +20,7 @@ fn main() {
     else {
         let vpn_connector = LinuxVpnConnector::new(&args[1]);
         
-        thread::sleep(Duration::from_secs(30)); // wait for networkmanager to start
+        thread::sleep(Duration::from_secs(10)); // wait for networkmanager to start
         vpn_connector.run_vpn_connector(&args);
     }
 }
