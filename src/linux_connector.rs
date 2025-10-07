@@ -2,7 +2,6 @@ pub mod linux_connector {
     use std::process::Command;
     use crate::connector::connector::Connector;
 
- 
     pub struct LinuxVpnConnector<'a>{
         vpn_name: &'a str,
     }
