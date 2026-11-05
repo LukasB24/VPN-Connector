@@ -1,64 +1,67 @@
-pub mod linux_connector {
-    use std::process::Command;
-    use crate::connector::connector::Connector;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Output, Stdio};
+use std::sync::mpsc::{self, Receiver};
+use std::thread;
 
-    pub struct LinuxVpnConnector<'a>{
-        vpn_name: &'a str,
+use crate::connector::Connector;
+
+pub struct LinuxConnector;
+
+impl Connector for LinuxConnector {
+    fn active_connections(&self) -> Vec<String> {
+        let Some(output) = run_nmcli(&[
+            "-t",
+            "-e",
+            "no",
+            "-f",
+            "NAME",
+            "connection",
+            "show",
+            "--active",
+        ]) else {
+            return Vec::new();
+        };
+
+        String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(String::from)
+            .collect()
     }
 
-    impl<'a> Connector<'a> for LinuxVpnConnector<'a>{
-        fn new(vpn_name: &'a str) -> Self {
-            LinuxVpnConnector{vpn_name}
-        }
+    fn watch_network_changes(&self) -> Option<Receiver<()>> {
+        let mut monitor = Command::new("nmcli")
+            .arg("monitor")
+            .stdout(Stdio::piped())
+            .spawn()
+            .inspect_err(|error| eprintln!("Failed to start nmcli monitor: {error}"))
+            .ok()?;
+        let stdout = monitor.stdout.take()?;
 
-        fn is_connected(&self, connection: &str) -> bool {
-            let output = Command::new("nmcli")
-                .args(&["-t", "-f", "NAME,TYPE", "connection", "show", "--active"])
-                .output()
-                .expect("Failed to execute command");
-            let output = String::from_utf8_lossy(&output.stdout);
-    
-            for line in output.lines() {
-                let mut fields = line.split(':');
-                let connection_name: &str = fields.next().unwrap();
-    
-                if connection_name == connection {
-                    return true;
+        let (sender, receiver) = mpsc::channel();
+        thread::spawn(move || {
+            for _ in BufReader::new(stdout).lines().map_while(Result::ok) {
+                if sender.send(()).is_err() {
+                    break;
                 }
             }
-            false
-        }
-    
-        fn connect_to_vpn(&self) -> bool {
-            let output: Result<std::process::Output, std::io::Error> = Command::new("nmcli")
-                .args(&["connection", "up", &self.vpn_name])
-                .output();
-    
-            match output {
-                Ok(output) => {
-                    output.status.success()
-                }
-                Err(output) => {
-                    println!("Failed to execute command: {}", output);
-                    false
-                }
-            }
-        }
+        });
 
-        fn disconnect_from_vpn(&self) -> bool {
-            let output: Result<std::process::Output, std::io::Error> = Command::new("nmcli")
-                .args(&["connection", "down", &self.vpn_name])
-                .output();
-    
-            match output {
-                Ok(output) => {
-                    output.status.success()
-                }
-                Err(output) => {
-                    println!("Failed to execute command: {}", output);
-                    false
-                }
-            }
-        }
+        Some(receiver)
     }
+
+    fn connect(&self, name: &str) -> bool {
+        run_nmcli(&["connection", "up", name]).is_some_and(|output| output.status.success())
+    }
+
+    fn disconnect(&self, name: &str) -> bool {
+        run_nmcli(&["connection", "down", name]).is_some_and(|output| output.status.success())
+    }
+}
+
+fn run_nmcli(args: &[&str]) -> Option<Output> {
+    Command::new("nmcli")
+        .args(args)
+        .output()
+        .inspect_err(|error| eprintln!("Failed to execute nmcli: {error}"))
+        .ok()
 }

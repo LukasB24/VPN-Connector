@@ -1,65 +1,85 @@
-pub mod connector {
-    use std::thread;
-    use std::time::Duration;
+use std::sync::mpsc::Receiver;
+use std::thread;
+use std::time::Duration;
 
-    pub trait Connector<'b> {
-        fn new(vpn_name: &'b str) -> Self;
+const COLOR_OK: &str = "\x1B[32m";
+const COLOR_WARN: &str = "\x1B[38;2;255;165;0m";
+const COLOR_ERR: &str = "\x1B[31m";
+const COLOR_RESET: &str = "\x1B[0m";
 
-        fn is_connected(&self, connection_name: &str) -> bool;
+const SETTLE_SECONDS: u64 = 2;
 
-        fn connect_to_vpn(&self) -> bool;
+pub struct VpnConfig {
+    pub vpn_name: String,
+    pub home_ssid: String,
+    pub secure_ssids: Vec<String>,
+}
 
-        fn disconnect_from_vpn(&self) -> bool;
+pub trait Connector {
+    fn active_connections(&self) -> Vec<String>;
 
-        fn run_vpn_connector(&self, connections: &Vec<String>){
-            loop {
-                let mut connected_to_secure_network: bool = false;
-                let connected_to_vpn: bool = self.is_connected(&connections[1]);
-                let connected_to_home_network: bool = self.is_connected(&connections[2]);
+    fn watch_network_changes(&self) -> Option<Receiver<()>>;
 
-                println!("{}Check connection status...{}\n", "\x1B[38;2;255;165;0m", "\x1B[0m");
-                
-                if connected_to_home_network {
-                    connected_to_secure_network = true;
+    fn connect(&self, name: &str) -> bool;
 
-                    if connected_to_vpn {
-                        println!("Status: {}OK\n{}Connected to VPN and home network. VPN will be disabled\n", "\x1B[32m", "\x1B[0m");
-                        self.disconnect_from_vpn();
-                    }
-                    else{
-                        println!("Status: {}OK\n{}Connected to home network: {}\n", "\x1B[32m", "\x1B[0m", &connections[2]);
-                    }
+    fn disconnect(&self, name: &str) -> bool;
+}
 
-                } else if connected_to_vpn {
-                    connected_to_secure_network = true;
-                    println!("Status: {}OK\n{}Connected to VPN\n", "\x1B[32m", "\x1B[0m");
-                }
-                
-                if !connected_to_secure_network && connections.len() > 3 { // additional networks were specified and need to be checked
-                    for connection in &connections[3..] {
-                        connected_to_secure_network = self.is_connected(connection);
-                        println!("Checking connection to secure network: {}\n", connection);
-    
-                        if connected_to_secure_network {
-                            println!("Status: {}OK\n{}Connected to secure network: {}\n", "\x1B[32m", "\x1B[0m", connection);
-                            break;
-                        }
-                    }
-                }
-                
-                if !connected_to_secure_network {
-                    println!("Status: {}NOT CONNECTED{}\nTrying to connect...\n", "\x1B[31m", "\x1B[0m");
-                    connected_to_secure_network= self.connect_to_vpn();
-        
-                    if !connected_to_secure_network {
-                        println!("Failed to connect to VPN: Check VPN name");
-                        return;
-                    }
+pub fn run_vpn_connector(connector: &impl Connector, config: &VpnConfig) {
+    let Some(changes) = connector.watch_network_changes() else {
+        return;
+    };
 
-                    println!("Status: {}OK\n{}Successfully connected to VPN\n", "\x1B[32m", "\x1B[0m");
-                }
-                thread::sleep(Duration::from_secs(30));
-            }
+    while ensure_secure_connection(connector, config) {
+        if changes.recv().is_err() {
+            eprintln!("Network monitor stopped");
+            return;
         }
+
+        thread::sleep(Duration::from_secs(SETTLE_SECONDS));
+        while changes.try_recv().is_ok() {}
     }
+}
+
+fn ensure_secure_connection(connector: &impl Connector, config: &VpnConfig) -> bool {
+    println!("{COLOR_WARN}Check connection status...{COLOR_RESET}\n");
+
+    let active = connector.active_connections();
+    let is_active = |name: &str| active.iter().any(|connection| connection == name);
+    let connected_to_vpn = is_active(&config.vpn_name);
+
+    if is_active(&config.home_ssid) {
+        if connected_to_vpn {
+            print_ok("Connected to VPN and home network. VPN will be disabled");
+            if !connector.disconnect(&config.vpn_name) {
+                eprintln!("Failed to disconnect from VPN");
+            }
+        } else {
+            print_ok(&format!("Connected to home network: {}", config.home_ssid));
+        }
+        return true;
+    }
+
+    if connected_to_vpn {
+        print_ok("Connected to VPN");
+        return true;
+    }
+
+    if let Some(ssid) = config.secure_ssids.iter().find(|ssid| is_active(ssid)) {
+        print_ok(&format!("Connected to secure network: {ssid}"));
+        return true;
+    }
+
+    println!("Status: {COLOR_ERR}NOT CONNECTED{COLOR_RESET}\nTrying to connect...\n");
+    if !connector.connect(&config.vpn_name) {
+        eprintln!("Failed to connect to VPN: Check VPN name");
+        return false;
+    }
+
+    print_ok("Successfully connected to VPN");
+    true
+}
+
+fn print_ok(message: &str) {
+    println!("Status: {COLOR_OK}OK{COLOR_RESET}\n{message}\n");
 }
