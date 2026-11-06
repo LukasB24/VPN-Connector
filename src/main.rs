@@ -9,7 +9,7 @@ use linux_connector::LinuxConnector;
 mod connector;
 mod linux_connector;
 
-const STARTUP_WAIT_SECONDS: u64 = 60;
+const STARTUP_WAIT_SECONDS: u64 = 10;
 
 fn main() -> ExitCode {
     let mut args = env::args().skip(1);
