@@ -5,7 +5,8 @@ A small program that connects your PC to VPN, if you're not connected to a speci
 - VPN-Connector uses "nmcli" to check and to establish connections. Therefore this application is only running on Linux devices.
 - You need to set up a vpn connection inside networkmanager.
 - It's possible to add multiple wifi connections as arguments but make sure to specify the VPN name as first argument.
-- The program checks every 30 seconds for active connections and will automatically establish a VPN connection, if you're not connected to a specified wifi or vpn. 
+- The program waits 60 seconds after start, then reacts to every network change reported by "nmcli monitor". It establishes the VPN connection if you're connected to neither the home network, a secure network nor the VPN.
+- The first wifi argument is your home network: the VPN is disabled while you are connected to it. Further wifi arguments are trusted networks, where the VPN is not needed.
 
 ## Getting started
 1. download rusts build tool cargo from "https://www.rust-lang.org/learn/get-started"

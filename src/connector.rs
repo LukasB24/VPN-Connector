@@ -41,45 +41,111 @@ pub fn run_vpn_connector(connector: &impl Connector, config: &VpnConfig) {
     }
 }
 
-fn ensure_secure_connection(connector: &impl Connector, config: &VpnConfig) -> bool {
-    println!("{COLOR_WARN}Check connection status...{COLOR_RESET}\n");
+enum Action {
+    DisableVpn,
+    ConnectVpn,
+    KeepAsIs(String),
+}
 
-    let active = connector.active_connections();
+fn decide(active: &[String], config: &VpnConfig) -> Action {
     let is_active = |name: &str| active.iter().any(|connection| connection == name);
     let connected_to_vpn = is_active(&config.vpn_name);
 
     if is_active(&config.home_ssid) {
-        if connected_to_vpn {
+        return if connected_to_vpn {
+            Action::DisableVpn
+        } else {
+            Action::KeepAsIs(format!("Connected to home network: {}", config.home_ssid))
+        };
+    }
+
+    if connected_to_vpn {
+        return Action::KeepAsIs("Connected to VPN".into());
+    }
+
+    match config.secure_ssids.iter().find(|ssid| is_active(ssid)) {
+        Some(ssid) => Action::KeepAsIs(format!("Connected to secure network: {ssid}")),
+        None => Action::ConnectVpn,
+    }
+}
+
+/// Returns `false` when the VPN could not be established and monitoring should stop.
+fn ensure_secure_connection(connector: &impl Connector, config: &VpnConfig) -> bool {
+    println!("{COLOR_WARN}Check connection status...{COLOR_RESET}\n");
+
+    match decide(&connector.active_connections(), config) {
+        Action::KeepAsIs(message) => print_ok(&message),
+        Action::DisableVpn => {
             print_ok("Connected to VPN and home network. VPN will be disabled");
             if !connector.disconnect(&config.vpn_name) {
                 eprintln!("Failed to disconnect from VPN");
             }
-        } else {
-            print_ok(&format!("Connected to home network: {}", config.home_ssid));
         }
-        return true;
+        Action::ConnectVpn => {
+            println!("Status: {COLOR_ERR}NOT CONNECTED{COLOR_RESET}\nTrying to connect...\n");
+            if !connector.connect(&config.vpn_name) {
+                eprintln!("Failed to connect to VPN: Check VPN name");
+                return false;
+            }
+            print_ok("Successfully connected to VPN");
+        }
     }
-
-    if connected_to_vpn {
-        print_ok("Connected to VPN");
-        return true;
-    }
-
-    if let Some(ssid) = config.secure_ssids.iter().find(|ssid| is_active(ssid)) {
-        print_ok(&format!("Connected to secure network: {ssid}"));
-        return true;
-    }
-
-    println!("Status: {COLOR_ERR}NOT CONNECTED{COLOR_RESET}\nTrying to connect...\n");
-    if !connector.connect(&config.vpn_name) {
-        eprintln!("Failed to connect to VPN: Check VPN name");
-        return false;
-    }
-
-    print_ok("Successfully connected to VPN");
     true
 }
 
 fn print_ok(message: &str) {
     println!("Status: {COLOR_OK}OK{COLOR_RESET}\n{message}\n");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config() -> VpnConfig {
+        VpnConfig {
+            vpn_name: "vpn".into(),
+            home_ssid: "home".into(),
+            secure_ssids: vec!["office".into()],
+        }
+    }
+
+    fn active(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn disables_vpn_at_home() {
+        let action = decide(&active(&["home", "vpn"]), &config());
+        assert!(matches!(action, Action::DisableVpn));
+    }
+
+    #[test]
+    fn keeps_state_at_home_without_vpn() {
+        let action = decide(&active(&["home"]), &config());
+        assert!(matches!(action, Action::KeepAsIs(_)));
+    }
+
+    #[test]
+    fn keeps_existing_vpn() {
+        let action = decide(&active(&["cafe", "vpn"]), &config());
+        assert!(matches!(action, Action::KeepAsIs(_)));
+    }
+
+    #[test]
+    fn trusts_secure_ssid() {
+        let action = decide(&active(&["office"]), &config());
+        assert!(matches!(action, Action::KeepAsIs(_)));
+    }
+
+    #[test]
+    fn connects_vpn_on_unknown_network() {
+        let action = decide(&active(&["cafe"]), &config());
+        assert!(matches!(action, Action::ConnectVpn));
+    }
+
+    #[test]
+    fn connects_vpn_when_offline() {
+        let action = decide(&[], &config());
+        assert!(matches!(action, Action::ConnectVpn));
+    }
 }
