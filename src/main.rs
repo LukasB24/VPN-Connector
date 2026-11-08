@@ -15,7 +15,7 @@ mod monitor;
 mod nmcli;
 mod policy;
 
-const STARTUP_WAIT: Duration = Duration::from_secs(60);
+const STARTUP_WAIT: Duration = Duration::from_secs(10);
 
 const USAGE: &str = "\
 Usage: vpn_connector <vpn> <home network> [trusted network...]
